@@ -50,7 +50,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           "flex-col md:flex-row"
         )}
       >
-        <Sidebar open={open} setOpen={setOpen} animate={false}>
+        <Sidebar open={open} setOpen={setOpen} animate={true}>
           <SidebarBody
             className="justify-between gap-10 border-gray-800 bg-black"
           >

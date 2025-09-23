@@ -13,14 +13,14 @@ interface AuthRequest extends Request {
   };
 }
 
-const router = Router();
+const authrouter = Router();
 
 // Auth routes
-router.post("/signup", signupController);
-router.post("/signin", signinController);
+authrouter.post("/signup", signupController);
+authrouter.post("/signin", signinController);
 
 // Protected route example
-router.get("/profile", authmiddleware, (req: AuthRequest, res: Response) => {
+authrouter.get("/profile", authmiddleware, (req: AuthRequest, res: Response) => {
   res.json({
     success: true,
     message: "Protected route accessed",
@@ -28,4 +28,4 @@ router.get("/profile", authmiddleware, (req: AuthRequest, res: Response) => {
   });
 });
 
-export default router;
+export default authrouter;

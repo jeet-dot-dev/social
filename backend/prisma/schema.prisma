@@ -14,9 +14,72 @@ datasource db {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  username  String   @unique
-  email     String   @unique
-  password  String
+  id                   String     @id @default(uuid())
+  username             String     @unique
+  email                String     @unique
+  password             String
+  linkedinAccessToken  String?
+  linkedinRefreshToken String?
+  linkedinTokenExpiry  DateTime?
+  linkedinConnected    Boolean    @default(false)
+  createdAt            DateTime   @default(now())
+  posts                Post[]
+  mediaAssets          MediaAsset[]
+}
+
+model Post {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  convo     Json? // full chatbot conversation history
+  content   String // AI generated / user edited text
+  ImageUrls String[] // uploaded images/videos (deprecated - use mediaAssets)
+  VideoUrls String[] // (deprecated - use mediaAssets)
+  socials   String[] // e.g. ["linkedin", "twitter"]
+
+  scheduledAt DateTime? // for calendar scheduling
+  isPosted    Boolean   @default(false)
+  lastEdited  DateTime  @updatedAt
+
   createdAt DateTime @default(now())
+  
+  // New relationship for media assets
+  mediaAssets MediaAsset[]
+}
+
+model MediaAsset {
+  id          String    @id @default(uuid())
+  userId      String
+  postId      String?
+  
+  // File information
+  fileName    String
+  originalName String
+  mimeType    String
+  size        Int
+  
+  // R2 storage information
+  r2Key       String    @unique // The key/path in R2
+  r2Url       String    // The public URL
+  
+  // LinkedIn-specific metadata
+  type        MediaType // IMAGE or VIDEO
+  title       String?
+  description String?
+  
+  // Upload metadata
+  uploadedAt  DateTime  @default(now())
+  
+  // Relations
+  user        User      @relation(fields: [userId], references: [id])
+  post        Post?     @relation(fields: [postId], references: [id])
+  
+  @@index([userId])
+  @@index([postId])
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
 }
