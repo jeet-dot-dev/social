@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 
 interface Message {
@@ -25,6 +25,11 @@ export const AIChat: React.FC<AIChatProps> = ({ onContentGenerated }) => {
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   // Dummy AI responses for now
   const getDummyResponse = (userInput: string): string => {
@@ -102,7 +107,7 @@ export const AIChat: React.FC<AIChatProps> = ({ onContentGenerated }) => {
             >
               <p className="whitespace-pre-wrap">{message.content}</p>
               <p className="text-xs mt-1 opacity-70">
-                {message.timestamp.toLocaleTimeString()}
+                {isClient ? message.timestamp.toLocaleTimeString() : ''}
               </p>
             </div>
           </div>

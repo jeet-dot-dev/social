@@ -15,7 +15,7 @@ interface AuthenticatedRequest extends Request {
 
 export const r2 = new S3Client({
   region: "auto", // R2 doesn't need real AWS regions
-  endpoint: `https://${process.env.CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+  endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
   credentials: {
     accessKeyId: process.env.R2_ACCESS_KEY_ID!,
     secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
@@ -99,9 +99,17 @@ export interface LinkedInMediaAsset {
 export const processUploadedFiles = (files: any[]): LinkedInMediaAsset[] => {
   return files.map(file => {
     const type = file.mimetype.startsWith('video/') ? 'VIDEO' : 'IMAGE';
+    
+    // Check if file has the expected structure from multerS3
+    const fileUrl = file.location || file.url;
+    if (!fileUrl) {
+      console.error('File missing location/url:', file);
+      throw new Error('File upload failed: missing file URL');
+    }
+    
     return {
       id: uuidv4(),
-      url: file.location,
+      url: fileUrl,
       type,
       size: file.size,
       mimeType: file.mimetype,

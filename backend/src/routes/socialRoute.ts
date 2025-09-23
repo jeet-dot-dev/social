@@ -60,12 +60,7 @@ socialrouter.get("/auth/linkedin/callback", async (req, res) => {
     return res.redirect(`http://localhost:3000/dashboard/profile?error=invalid_state`);
   }
 
-  const userIdString = stateParts[1];
-  const userId = parseInt(userIdString);
-  
-  if (isNaN(userId)) {
-    return res.redirect(`http://localhost:3000/dashboard/profile?error=invalid_user_id`);
-  }
+  const userId = stateParts[1]; // User ID is a UUID string
 
   try {
     // Use the original redirect URI for token exchange
@@ -106,7 +101,7 @@ socialrouter.get("/auth/linkedin/callback", async (req, res) => {
 
     // Update user with LinkedIn tokens
     await prisma.user.update({
-      where: { id: userId.toString() },
+      where: { id: userId },
       data: {
         linkedinAccessToken: access_token,
         linkedinRefreshToken: refresh_token,

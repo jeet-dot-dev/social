@@ -3,7 +3,7 @@ import prisma from '../model/prisma.js';
 
 interface AuthenticatedRequest extends Request {
   user?: {
-    userId: number;
+    userId: string;
     email: string;
   };
 }
@@ -24,7 +24,7 @@ export class PostController {
    */
   static async createPost(req: AuthenticatedRequest, res: Response) {
     try {
-      const userId = req.user?.userId?.toString();
+      const userId = req.user?.userId;
       if (!userId) {
         return res.status(401).json({
           success: false,
@@ -53,6 +53,9 @@ export class PostController {
       // Validate media assets if provided
       let validatedMediaAssets: any[] = [];
       if (mediaAssetIds.length > 0) {
+        console.log('Validating media assets:', mediaAssetIds);
+        console.log('User ID:', userId);
+        
         validatedMediaAssets = await prisma.mediaAsset.findMany({
           where: {
             id: { in: mediaAssetIds },
@@ -60,7 +63,12 @@ export class PostController {
           }
         });
 
+        console.log('Found media assets:', validatedMediaAssets.length);
+        console.log('Expected count:', mediaAssetIds.length);
+        console.log('Found assets:', validatedMediaAssets.map(a => ({ id: a.id, fileName: a.fileName })));
+
         if (validatedMediaAssets.length !== mediaAssetIds.length) {
+          console.log('Validation failed: asset count mismatch');
           return res.status(400).json({
             success: false,
             error: 'Invalid media assets',
@@ -171,7 +179,7 @@ export class PostController {
    */
   static async getUserPosts(req: AuthenticatedRequest, res: Response) {
     try {
-      const userId = req.user?.userId?.toString();
+      const userId = req.user?.userId;
       if (!userId) {
         return res.status(401).json({
           success: false,
@@ -234,7 +242,7 @@ export class PostController {
    */
   static async getPost(req: AuthenticatedRequest, res: Response) {
     try {
-      const userId = req.user?.userId?.toString();
+      const userId = req.user?.userId;
       const { id } = req.params;
 
       if (!userId || !id) {
@@ -287,7 +295,7 @@ export class PostController {
    */
   static async updatePost(req: AuthenticatedRequest, res: Response) {
     try {
-      const userId = req.user?.userId?.toString();
+      const userId = req.user?.userId;
       const { id } = req.params;
 
       if (!userId || !id) {
@@ -377,7 +385,7 @@ export class PostController {
    */
   static async deletePost(req: AuthenticatedRequest, res: Response) {
     try {
-      const userId = req.user?.userId?.toString();
+      const userId = req.user?.userId;
       const { id } = req.params;
 
       if (!userId || !id) {

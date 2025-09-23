@@ -3,9 +3,10 @@
 import React, { useState } from 'react';
 import { AIChat } from '@/components/dashboard/AIChat';
 import { Calendar } from '@/components/dashboard/Calendar';
-import { MediaUpload } from '@/components/dashboard/MediaUpload';
+import MediaUpload, { MediaFile } from '@/components/dashboard/MediaUpload';
 import { PostPreview } from '@/components/dashboard/PostPreview';
 import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 
 interface Message {
   id: string;
@@ -25,7 +26,7 @@ const CreatePostPage = () => {
   const [postContent, setPostContent] = useState('');
   const [conversation, setConversation] = useState<Message[]>([]);
   const [scheduledDateTime, setScheduledDateTime] = useState<Date | null>(null);
-  const [uploadedMedia, setUploadedMedia] = useState<MediaAsset[]>([]);
+  const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
 
@@ -39,27 +40,83 @@ const CreatePostPage = () => {
     setShowCalendar(false); // Close calendar after selection
   };
 
-  const handleMediaUpload = (mediaAssets: MediaAsset[]) => {
-    setUploadedMedia(mediaAssets);
+  const handleMediaChange = (files: MediaFile[]) => {
+    setMediaFiles(files);
   };
 
   const handleContentChange = (content: string) => {
     setPostContent(content);
   };
 
+  const uploadFilesToR2 = async (files: MediaFile[]): Promise<MediaAsset[]> => {
+    if (files.length === 0) return [];
+
+    try {
+      const authToken = localStorage.getItem('authToken');
+      console.log('Upload - Auth token found:', !!authToken);
+      console.log('Upload - Token length:', authToken?.length);
+      
+      if (!authToken) {
+        toast.error('Please login to upload media');
+        throw new Error('No auth token');
+      }
+
+      const formData = new FormData();
+      files.forEach(mediaFile => {
+        formData.append('media', mediaFile.file);
+      });
+
+      console.log('Making upload request to:', 'http://localhost:3002/api/media/upload');
+      const response = await fetch('http://localhost:3002/api/media/upload', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: formData
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        const uploadedAssets = result.data.uploadedFiles;
+        return uploadedAssets.map((asset: {id: string, url: string, type: string}) => ({
+          id: asset.id,
+          url: asset.url,
+          type: asset.type,
+          assetId: asset.id
+        }));
+      } else {
+        toast.error(result.message || 'Upload failed');
+        throw new Error(result.message || 'Upload failed');
+      }
+    } catch (error) {
+      toast.error('Upload failed. Please try again.');
+      throw error;
+    }
+  };
+
   const handleSavePost = async () => {
     if (!postContent.trim()) {
-      alert('Please add some content to your post');
+      toast.error('Please add some content to your post');
       return;
     }
 
     setIsSaving(true);
 
     try {
-      // Get token from localStorage
-      const token = localStorage.getItem('token');
-      if (!token) {
-        alert('Please login to create posts');
+      // First upload files to R2 if there are any
+      let uploadedMediaAssets: MediaAsset[] = [];
+      if (mediaFiles.length > 0) {
+        toast.info('Uploading media files...');
+        uploadedMediaAssets = await uploadFilesToR2(mediaFiles);
+        toast.success('Media files uploaded successfully!');
+      }
+
+      // Get authToken from localStorage
+      const authToken = localStorage.getItem('authToken');
+      
+      if (!authToken) {
+        toast.error('Please login to create posts');
         setIsSaving(false);
         return;
       }
@@ -67,16 +124,19 @@ const CreatePostPage = () => {
       const postData = {
         content: postContent,
         convo: conversation,
-        mediaAssetIds: uploadedMedia.map(media => media.assetId),
+        mediaAssetIds: uploadedMediaAssets.map(media => media.assetId),
         socials: ['linkedin'],
         ...(scheduledDateTime && { scheduledAt: scheduledDateTime.toISOString() })
       };
 
+      console.log('Making post request to:', 'http://localhost:3002/api/posts/create');
+      console.log('Post data:', postData);
+      
       const response = await fetch('http://localhost:3002/api/posts/create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${authToken}`
         },
         body: JSON.stringify(postData)
       });
@@ -84,20 +144,19 @@ const CreatePostPage = () => {
       const result = await response.json();
 
       if (result.success) {
-        alert(scheduledDateTime ? 'Post scheduled successfully!' : 'Post created successfully!');
+        toast.success(scheduledDateTime ? 'Post scheduled successfully!' : 'Post created successfully!');
         
         // Reset form
         setPostContent('');
         setConversation([]);
         setScheduledDateTime(null);
-        setUploadedMedia([]);
+        setMediaFiles([]);
         
       } else {
-        alert(result.error || 'Failed to create post');
+        toast.error(result.error || 'Failed to create post');
       }
-    } catch (error) {
-      console.error('Error creating post:', error);
-      alert('Failed to create post. Please try again.');
+    } catch {
+      toast.error('Failed to create post. Please try again.');
     } finally {
       setIsSaving(false);
     }
@@ -169,7 +228,12 @@ const CreatePostPage = () => {
             <PostPreview
               content={postContent}
               onContentChange={handleContentChange}
-              media={uploadedMedia}
+              media={mediaFiles.map(file => ({ 
+                id: file.id, 
+                url: file.preview, 
+                type: file.type.toUpperCase(), 
+                assetId: file.id 
+              }))}
               scheduledAt={scheduledDateTime}
               onSave={handleSavePost}
               isSaving={isSaving}
@@ -178,9 +242,9 @@ const CreatePostPage = () => {
 
           {/* Media Upload - Bottom Half */}
           <div className="flex-1 min-h-0 overflow-hidden">
-            <MediaUpload 
-              onMediaUpload={handleMediaUpload}
-              uploadedMedia={uploadedMedia}
+            <MediaUpload
+              onMediaChange={handleMediaChange}
+              mediaFiles={mediaFiles}
             />
           </div>
         </div>

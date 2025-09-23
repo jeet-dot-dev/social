@@ -5,7 +5,7 @@ import type { ValidatedFile } from '../middlewares/fileValidation.js';
 
 interface AuthenticatedRequest extends Request {
   user?: {
-    userId: number;
+    userId: string;
     email: string;
   };
 }
@@ -29,7 +29,7 @@ export class MediaController {
    */
   static async uploadMedia(req: AuthenticatedRequest, res: Response<MediaUploadResponse>) {
     try {
-      const userId = req.user?.userId?.toString();
+      const userId = req.user?.userId;
       if (!userId) {
         return res.status(401).json({
           success: false,
@@ -46,6 +46,15 @@ export class MediaController {
           message: 'Please select at least one file to upload'
         });
       }
+
+      console.log('Received files:', files.map(f => ({
+        filename: f.filename,
+        originalname: f.originalname,
+        mimetype: f.mimetype,
+        size: f.size,
+        location: f.location,
+        key: f.key
+      })));
 
       // Process files for LinkedIn compatibility
       const linkedinAssets = processUploadedFiles(files);
@@ -74,7 +83,19 @@ export class MediaController {
         success: true,
         message: `Successfully uploaded ${files.length} file(s)`,
         data: {
-          uploadedFiles: linkedinAssets,
+          uploadedFiles: savedAssets.map(asset => {
+            const result: any = {
+              id: asset.id,
+              url: asset.r2Url,
+              type: asset.type as 'IMAGE' | 'VIDEO',
+              fileName: asset.fileName,
+              mimeType: asset.mimeType,
+              size: asset.size
+            };
+            if (asset.title) result.title = asset.title;
+            if (asset.description) result.description = asset.description;
+            return result;
+          }),
           totalUploaded: files.length,
           linkedinReady: true
         }
@@ -96,7 +117,7 @@ export class MediaController {
    */
   static async getUserMedia(req: AuthenticatedRequest, res: Response) {
     try {
-      const userId = req.user?.userId?.toString();
+      const userId = req.user?.userId;
       if (!userId) {
         return res.status(401).json({
           success: false,
